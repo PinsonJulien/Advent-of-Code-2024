@@ -116,11 +116,12 @@ func IsReportSafe(report []int) bool {
 	// Start from the second element
 	for i := 1; i < length-1; i++ {
 		distance := CalculateDistance(report[i], report[i+1])
+		isCurrentIncreasing := distance > 0
 		if !isWithinAllowedRange(distance) {
 			return false
 		}
 
-		if (isIncreasing && distance < 0) || (!isIncreasing && distance > 0) {
+		if isIncreasing != isCurrentIncreasing {
 			return false
 		}
 	}
