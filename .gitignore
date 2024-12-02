@@ -5,6 +5,6 @@
 
 
 # Don't commit input files in all the directories
-day01/inputs.txt
+**/inputs.txt
 
 
