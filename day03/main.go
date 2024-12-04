@@ -73,7 +73,10 @@ func loadInputs(filename string) (pairs []Pair) {
 			continue
 		}
 
-		pairs = append(pairs, Pair{first, second, enabled})
+		pairs = append(
+			pairs,
+			Pair{first, second, enabled},
+		)
 	}
 
 	return pairs
