@@ -122,6 +122,7 @@ func (LabMap *LabMap) getPositionsWhichWouldCauseALoop() []Position {
 				continue
 			}
 			position := Position{x, y}
+			fmt.Println("position", position)
 			if LabMap.wouldCauseALoop(position) {
 				positions = append(positions, position)
 			}
@@ -135,31 +136,44 @@ func (LabMap *LabMap) wouldCauseALoop(position Position) bool {
 	// Check if the position has a wall on north.
 	// If it doesn't, then check if the position has a wall on south left
 
-	northPosition := LabMap.getNextBlockPosition(position, North)
+	rightOfPosition := Position{
+		x: position.x + 1,
+		y: position.y,
+	}
+	northPosition := LabMap.getNextBlockPosition(rightOfPosition, North)
 	if LabMap.isPositionWall(northPosition) {
 		// Check if the position has a wall on west.
 		underNorthPosition := Position{
 			x: northPosition.x,
 			y: northPosition.y + 1,
 		}
-		westPosition := LabMap.getNextBlockPosition(underNorthPosition, West)
-		if !LabMap.isPositionWall(westPosition) {
-			fmt.Println("westPosition", westPosition)
+		eastPosition := LabMap.getNextBlockPosition(underNorthPosition, East)
+		if !LabMap.isPositionWall(eastPosition) {
 			return false
 		}
 
-		beforeWestPosition := Position{
-			x: westPosition.x - 1,
-			y: westPosition.y,
+		beforeEastPosition := Position{
+			x: eastPosition.x - 1,
+			y: eastPosition.y,
 		}
 
 		// Check if the position has a wall on south.
-		southPosition := LabMap.getNextBlockPosition(beforeWestPosition, South)
+		southPosition := LabMap.getNextBlockPosition(beforeEastPosition, South)
 		if !LabMap.isPositionWall(southPosition) {
 			return false
 		}
 
-		return true
+		upSouthPosition := Position{
+			x: southPosition.x,
+			y: southPosition.y - 1,
+		}
+
+		// Check if the position has the same y position as the starting position
+		if upSouthPosition.y == position.y {
+			return true
+		}
+
+		return false
 	}
 
 	// Check if the position has a wall on south.
@@ -170,12 +184,12 @@ func (LabMap *LabMap) wouldCauseALoop(position Position) bool {
 
 	southPosition := LabMap.getNextBlockPosition(leftPosition, South)
 	if LabMap.isPositionWall(southPosition) {
-		// Check if the position has a wall on east.
-		rightSouthPosition := Position{
-			x: southPosition.x + 1,
-			y: southPosition.y,
+		// Check if the position has a wall on west.
+		upSouthPosition := Position{
+			x: southPosition.x,
+			y: southPosition.y - 1,
 		}
-		eastPosition := LabMap.getNextBlockPosition(rightSouthPosition, East)
+		eastPosition := LabMap.getNextBlockPosition(upSouthPosition, East)
 		if !LabMap.isPositionWall(eastPosition) {
 			return false
 		}
@@ -191,7 +205,17 @@ func (LabMap *LabMap) wouldCauseALoop(position Position) bool {
 			return false
 		}
 
-		return true
+		downNorthPosition := Position{
+			x: northPosition.x,
+			y: northPosition.y - 1,
+		}
+
+		// Check if the position has the same y position as the starting position
+		if downNorthPosition.y == position.y {
+			return true
+		}
+
+		return false
 	}
 
 	return false
@@ -206,6 +230,7 @@ func (LabMap *LabMap) getNextBlockPosition(currentPosition Position, direction D
 
 	// Move in the given direction until we find a wall
 	for {
+		fmt.Println("newPosition", newPosition)
 		switch direction {
 		case North:
 			newPosition.y--
