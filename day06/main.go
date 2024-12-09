@@ -133,10 +133,60 @@ func (LabMap *LabMap) getPositionsWhichWouldCauseALoop() []Position {
 }
 
 func (LabMap *LabMap) wouldCauseALoop(position Position) bool {
+	// if position 3, 6, place a rock
+
+	// temporarily add a rock at position.
+	LabMap.area[position.y][position.x] = "#"
+	defer func() {
+		fmt.Println("changing back to .")
+		LabMap.area[position.y][position.x] = "."
+	}()
+
+	// Get all the rocks in all directions
+	rocks := LabMap.getRocksInAllDirections(position)
+
+	// if there's less than 2 rocks, return false
+	if len(rocks) < 2 {
+		return false
+	}
+
+	// Check if position is one of the values of each all directions from all angles
+	for _, rock := range rocks {
+		walls := LabMap.getRocksInAllDirections(rock)
+		if len(walls) < 2 {
+			continue
+		}
+
+		fmt.Println("walls", walls)
+		hasOriginalPositionAsWall := false
+		hasAtLeastOneWall := false
+
+		// Check if the position is one of the values of each all directions from all angles
+		for _, wall := range walls {
+			if wall == position {
+				hasOriginalPositionAsWall = true
+			} else {
+				for _, r := range rocks {
+					fmt.Println("has one ??")
+					fmt.Println(r, wall)
+					if wall == r {
+						hasAtLeastOneWall = true
+					}
+				}
+			}
+		}
+
+		if hasOriginalPositionAsWall && hasAtLeastOneWall {
+			return true
+		}
+	}
+	fmt.Println("done checking")
+	return false
+
 	// Check if the position has a wall on north.
 	// If it doesn't, then check if the position has a wall on south left
 
-	rightOfPosition := Position{
+	/*rightOfPosition := Position{
 		x: position.x + 1,
 		y: position.y,
 	}
@@ -216,9 +266,8 @@ func (LabMap *LabMap) wouldCauseALoop(position Position) bool {
 		}
 
 		return false
-	}
+	}*/
 
-	return false
 }
 
 func (LabMap *LabMap) getNextBlockPosition(currentPosition Position, direction Direction) Position {
@@ -230,7 +279,6 @@ func (LabMap *LabMap) getNextBlockPosition(currentPosition Position, direction D
 
 	// Move in the given direction until we find a wall
 	for {
-		fmt.Println("newPosition", newPosition)
 		switch direction {
 		case North:
 			newPosition.y--
@@ -252,6 +300,52 @@ func (LabMap *LabMap) getNextBlockPosition(currentPosition Position, direction D
 	}
 
 	return newPosition
+}
+
+func (LabMap *LabMap) getRocksInAllDirections(position Position) map[Direction]Position {
+	rocks := make(map[Direction]Position)
+
+	northPosition := LabMap.getRockInDirection(position, North)
+	if LabMap.isPositionWall(northPosition) {
+		rocks[North] = northPosition
+	}
+
+	eastPosition := LabMap.getRockInDirection(position, East)
+	if LabMap.isPositionWall(eastPosition) {
+		rocks[East] = eastPosition
+	}
+
+	southPosition := LabMap.getRockInDirection(position, South)
+	if LabMap.isPositionWall(southPosition) {
+		rocks[South] = southPosition
+	}
+
+	westPosition := LabMap.getRockInDirection(position, West)
+	if LabMap.isPositionWall(westPosition) {
+		rocks[West] = westPosition
+	}
+
+	return rocks
+}
+
+func (LabMap *LabMap) getRockInDirection(position Position, direction Direction) Position {
+	newPosition := Position{
+		x: position.x,
+		y: position.y,
+	}
+
+	switch direction {
+	case North:
+		newPosition.x++
+	case East:
+		newPosition.y++
+	case South:
+		newPosition.x--
+	case West:
+		newPosition.y--
+	}
+
+	return LabMap.getNextBlockPosition(newPosition, direction)
 }
 
 // Guardian methods
