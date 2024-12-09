@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -10,16 +11,17 @@ const DefaultTestInputFile = "inputs.txt.example"
 func getTestInputs() ProblemInput {
 	labMap := LabMap{
 		area: [][]string{
-			{".", ".", ".", ".", "#", ".", ".", ".", ".", "."},
-			{".", ".", ".", ".", ".", ".", ".", ".", ".", "#"},
-			{".", ".", ".", ".", ".", ".", ".", ".", ".", "."},
-			{".", ".", "#", ".", ".", ".", ".", ".", ".", "."},
-			{".", ".", ".", ".", ".", ".", ".", "#", ".", "."},
-			{".", ".", ".", ".", ".", ".", ".", ".", ".", "."},
-			{".", "#", ".", ".", "^", ".", ".", ".", ".", "."},
-			{".", ".", ".", ".", ".", ".", ".", ".", "#", "."},
-			{"#", ".", ".", ".", ".", ".", ".", ".", ".", "."},
-			{".", ".", ".", ".", ".", ".", "#", ".", ".", "."},
+			//0    1    2    3    4    5    6    7    8    9
+			{".", ".", ".", ".", "#", ".", ".", ".", ".", "."}, // 0
+			{".", ".", ".", ".", ".", ".", ".", ".", ".", "#"}, // 1
+			{".", ".", ".", ".", ".", ".", ".", ".", ".", "."}, // 2
+			{".", ".", "#", ".", ".", ".", ".", ".", ".", "."}, // 3
+			{".", ".", ".", ".", ".", ".", ".", "#", ".", "."}, // 4
+			{".", ".", ".", ".", ".", ".", ".", ".", ".", "."}, // 5
+			{".", "#", ".", ".", "^", ".", ".", ".", ".", "."}, // 6
+			{".", ".", ".", ".", ".", ".", ".", ".", "#", "."}, // 7
+			{"#", ".", ".", ".", ".", ".", ".", ".", ".", "."}, // 8
+			{".", ".", ".", ".", ".", ".", "#", ".", ".", "."}, // 9
 		},
 	}
 
@@ -62,12 +64,13 @@ func TestNewGuardian(t *testing.T) {
 		t.Errorf("Expected %v but got %v", expectedLeftTheLab, actualLeftTheLab)
 	}
 
-	expectedPositionSet := make(map[Position]bool)
-	expectedPositionSet[Position{4, 6}] = true
-	actualPositionSet := guardian.positionSet
+	expectedVisitedPositions := []Position{
+		{4, 6},
+	}
+	actualVisitedPositions := guardian.visitedPositions
 
-	if !reflect.DeepEqual(actualPositionSet, expectedPositionSet) {
-		t.Errorf("Expected %v but got %v", expectedPositionSet, actualPositionSet)
+	if !reflect.DeepEqual(actualVisitedPositions, expectedVisitedPositions) {
+		t.Errorf("Expected %v but got %v", expectedVisitedPositions, actualVisitedPositions)
 	}
 
 	expectedLabMap := inputs.labMap
@@ -85,7 +88,7 @@ func TestGuardianVisitTheLab(t *testing.T) {
 	guardian.visitTheLab()
 
 	expected := 41
-	actual := len(guardian.positionSet)
+	actual := guardian.getUniquePositionsVisited()
 
 	if actual != expected {
 		t.Errorf("Expected %v but got %v", expected, actual)
@@ -266,7 +269,7 @@ func TestGuardianAddPositionToSet(t *testing.T) {
 	guardian.moveForward()
 
 	expected := 2
-	actual := len(guardian.positionSet)
+	actual := guardian.getUniquePositionsVisited()
 
 	if actual != expected {
 		t.Errorf("Expected %v but got %v", expected, actual)
@@ -276,7 +279,7 @@ func TestGuardianAddPositionToSet(t *testing.T) {
 	guardian.moveForward()
 
 	expected = 3
-	actual = len(guardian.positionSet)
+	actual = guardian.getUniquePositionsVisited()
 
 	if actual != expected {
 		t.Errorf("Expected %v but got %v", expected, actual)
@@ -286,7 +289,7 @@ func TestGuardianAddPositionToSet(t *testing.T) {
 	guardian.moveForward()
 
 	expected = 4
-	actual = len(guardian.positionSet)
+	actual = guardian.getUniquePositionsVisited()
 
 	if actual != expected {
 		t.Errorf("Expected %v but got %v", expected, actual)
@@ -296,7 +299,7 @@ func TestGuardianAddPositionToSet(t *testing.T) {
 	guardian.moveForward()
 
 	expected = 5
-	actual = len(guardian.positionSet)
+	actual = guardian.getUniquePositionsVisited()
 
 	if actual != expected {
 		t.Errorf("Expected %v but got %v", expected, actual)
@@ -356,8 +359,9 @@ func TestLabMapGetPositionsWhichWouldCauseALoop(t *testing.T) {
 		t.Errorf("Expected %v but got %v", expected, actual)
 	}
 
-	for i, position := range actual {
-		if position != expected[i] {
+	// check regardless of order
+	for _, position := range expected {
+		if !slices.Contains(actual, position) {
 			t.Errorf("Expected %v but got %v", expected, actual)
 		}
 	}
@@ -465,42 +469,28 @@ func TestLabMapGetStartingPosition(t *testing.T) {
 	}
 }
 
-func TestLabMapGetNextBlockPosition(t *testing.T) {
+func TestGuardianHasLooped(t *testing.T) {
+	performTest := func(inputs ProblemInput, position Position, expected bool) {
+		guardian := NewGuardian(inputs.labMap)
+		inputs.labMap.area[position.y][position.x] = "#"
+		guardian.visitTheLab()
+		inputs.labMap.area[position.y][position.x] = "."
+		actual := guardian.hasLooped()
+
+		if actual != expected {
+			t.Errorf("Expected %v but got %v . Values : %v", expected, actual, position)
+		}
+	}
+
 	inputs := getTestInputs()
 
-	labMap := inputs.labMap
+	performTest(inputs, Position{3, 6}, true)
+	performTest(inputs, Position{6, 7}, true)
+	performTest(inputs, Position{7, 7}, true)
+	performTest(inputs, Position{1, 8}, true)
+	performTest(inputs, Position{3, 8}, true)
+	performTest(inputs, Position{7, 9}, true)
 
-	position := Position{4, 6}
+	performTest(inputs, Position{5, 4}, false)
 
-	// Test north
-	expected := Position{4, 0}
-	actual := labMap.getNextBlockPosition(position, North)
-
-	if actual != expected {
-		t.Errorf("Expected %v but got %v", expected, actual)
-	}
-
-	// Test east
-	expected = Position{10, 6}
-	actual = labMap.getNextBlockPosition(position, East)
-
-	if actual != expected {
-		t.Errorf("Expected %v but got %v", expected, actual)
-	}
-
-	// Test south
-	expected = Position{4, 10}
-	actual = labMap.getNextBlockPosition(position, South)
-
-	if actual != expected {
-		t.Errorf("Expected %v but got %v", expected, actual)
-	}
-
-	// Test west
-	expected = Position{1, 6}
-	actual = labMap.getNextBlockPosition(position, West)
-
-	if actual != expected {
-		t.Errorf("Expected %v but got %v", expected, actual)
-	}
 }
