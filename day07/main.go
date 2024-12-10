@@ -13,6 +13,7 @@ type Operator int
 const (
 	Addition Operator = iota
 	Multiplication
+	Concatenate
 )
 
 type Equation struct {
@@ -41,7 +42,7 @@ func firstPart(inputs ProblemInput) int {
 }
 
 func secondPart(inputs ProblemInput) int {
-	return 0
+	return getTotalCalibrationResultWithConcatenate(inputs)
 }
 
 func loadInputs(filename string) (inputs ProblemInput) {
@@ -97,11 +98,20 @@ func getTotalCalibrationResult(input ProblemInput) int {
 	return total
 }
 
+func getTotalCalibrationResultWithConcatenate(input ProblemInput) int {
+	total := 0
+	for _, equation := range getValidEquationsWithConcatenate(input) {
+		total = total + equation.result
+	}
+
+	return total
+}
+
 func getValidEquations(input ProblemInput) []Equation {
 	validEquations := []Equation{}
 
 	for _, equation := range input.equations {
-		if equation.isPossible() {
+		if equation.isPossible([]Operator{Addition, Multiplication}) {
 			validEquations = append(validEquations, equation)
 		}
 	}
@@ -109,42 +119,75 @@ func getValidEquations(input ProblemInput) []Equation {
 	return validEquations
 }
 
-func convertIntegerToBinaryString(value int) string {
-	n := int64(value)
-	return strconv.FormatInt(n, 2)
+func equationContains(equations []Equation, equation Equation) bool {
+	for _, eq := range equations {
+		if eq.Equals(equation) {
+			return true
+		}
+	}
+
+	return false
 }
 
-func getOperatorsByBinaryString(binaryStr string, expectedLength int) []Operator {
-	operators := []Operator{}
+func getValidEquationsWithConcatenate(input ProblemInput) []Equation {
+	validEquations := getValidEquations(input)
 
-	for _, c := range binaryStr {
-		operator := Addition
-		if c != '0' {
-			operator = Multiplication
+	// first, we check if the equation is possible with only addition and multiplication
+
+	// then, we check if the equation is possible with addition, multiplication and concatenation
+	invalidEquations := []Equation{}
+	// Only add the equations that are not valid with only addition and multiplication
+	for _, equation := range input.equations {
+		if !equationContains(validEquations, equation) {
+			invalidEquations = append(invalidEquations, equation)
 		}
-
-		operators = append(operators, operator)
 	}
 
-	// Add the missing operators before the firsts
-	for i := len(operators); i < expectedLength; i++ {
-		operators = append([]Operator{Addition}, operators...)
+	for _, equation := range invalidEquations {
+		if equation.isPossible([]Operator{Addition, Multiplication, Concatenate}) {
+			validEquations = append(validEquations, equation)
+		}
 	}
 
-	return operators
+	return validEquations
 }
 
 // Equation methods
 
-func (e *Equation) isPossible() bool {
-	// Check if the equation is possible to calculate
-	expectedNumberOfOperators := len(e.numbers) - 1
-	maxIterations := int(math.Pow(float64(2), float64(expectedNumberOfOperators)))
+func (e *Equation) isPossible(allowedOperators []Operator) bool {
+	calculateNumberOfPossibilities := func() int {
+		size := len(allowedOperators)
+		numberOfOperators := len(e.numbers) - 1
+		return int(math.Pow(float64(size), float64(numberOfOperators)))
+	}
 
-	// use binary to determine the operators for each loops
-	for i := 0; i < maxIterations; i++ {
-		binaryStr := convertIntegerToBinaryString(i)
-		operators := getOperatorsByBinaryString(binaryStr, expectedNumberOfOperators)
+	intToBaseString := func(n int64) string {
+		base := len(allowedOperators)
+		// convert the integer to a formatted string of base n
+		return strconv.FormatInt(n, base)
+	}
+
+	determineOperators := func(n int) []Operator {
+		operators := []Operator{}
+		// convert the integer to a formatted string of base n
+		baseStr := intToBaseString(int64(n))
+		for _, c := range baseStr {
+			operatorIndex, _ := strconv.Atoi(string(c))
+			operator := allowedOperators[operatorIndex]
+			operators = append(operators, operator)
+		}
+
+		// Add the missing operators before the firsts
+		firstOperator := allowedOperators[0]
+		for i := len(operators); i < len(e.numbers)-1; i++ {
+			operators = append([]Operator{firstOperator}, operators...)
+		}
+
+		return operators
+	}
+
+	for i := 0; i < calculateNumberOfPossibilities(); i++ {
+		operators := determineOperators(i)
 
 		calculator := NewCalculator(
 			e.numbers,
@@ -159,6 +202,24 @@ func (e *Equation) isPossible() bool {
 	}
 
 	return false
+}
+
+func (e *Equation) Equals(equation Equation) bool {
+	if e.result != equation.result {
+		return false
+	}
+
+	if len(e.numbers) != len(equation.numbers) {
+		return false
+	}
+
+	for i, number := range e.numbers {
+		if number != equation.numbers[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Calculator methods
@@ -183,6 +244,12 @@ func (c *Calculator) calculate() int {
 			total = total + value
 		case Multiplication:
 			total = total * value
+		case Concatenate:
+			// Concatenate the value to the total
+			totalStr := strconv.Itoa(total)
+			valueStr := strconv.Itoa(value)
+			totalStr = totalStr + valueStr
+			total, _ = strconv.Atoi(totalStr)
 		}
 	}
 
