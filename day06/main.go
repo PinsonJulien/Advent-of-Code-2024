@@ -9,13 +9,9 @@ import (
 type Direction int
 
 const (
-	// North direction
 	North Direction = iota
-	// East direction
 	East
-	// South direction
 	South
-	// West direction
 	West
 )
 
@@ -56,7 +52,9 @@ func firstPart(inputs ProblemInput) int {
 }
 
 func secondPart(inputs ProblemInput) int {
-	return len(inputs.labMap.getPositionsWhichWouldCauseALoop())
+	// Create a copy of the lab map to avoid modifying the original
+	loopPositions := inputs.labMap.getPositionsWhichWouldCauseALoop()
+	return len(loopPositions)
 }
 
 func loadInputs(filename string) (inputs ProblemInput) {
@@ -112,41 +110,62 @@ func (LabMap *LabMap) isPositionWall(position Position) bool {
 	return LabMap.getCellAtPosition(position) == "#"
 }
 
-func (LabMap *LabMap) getPositionsWhichWouldCauseALoop() []Position {
-	originalGuardian := NewGuardian(*LabMap)
+func (labMap *LabMap) getPositionsWhichWouldCauseALoop() []Position {
+	// Create a deep copy of the lab map to avoid modifying the original
+	copiedLabMap := LabMap{area: make([][]string, len(labMap.area))}
+	for i, row := range labMap.area {
+		copiedLabMap.area[i] = make([]string, len(row))
+		copy(copiedLabMap.area[i], row)
+	}
+
+	originalGuardian := NewGuardian(copiedLabMap)
 	originalGuardian.visitTheLab()
 
-	positionsWhichWouldCauseALoop := map[Position]bool{}
+	positionsWhichWouldCauseALoop := []Position{}
 
-	// Loop through the guardian's path and find the positions that would cause a loop
-
-	// for each position visited by the guardian, add an obstacle and see if the guardian would visit it again
-	for _, position := range originalGuardian.visitedPositions {
-		// don't do anything if the position is the starting position
+	// Loop through the positions that could potentially cause a loop
+	fmt.Println("Length of visited positions", len(originalGuardian.visitedPositions))
+	for i, position := range originalGuardian.visitedPositions {
+		fmt.Println("Checking position", i, "of", len(originalGuardian.visitedPositions))
+		// Skip the starting position
 		if position == originalGuardian.LabMap.getStartingPosition() {
 			continue
 		}
 
-		LabMap.addObstacle(position)
-		guardian := NewGuardian(*LabMap)
-
-		guardian.visitTheLab()
-
-		// If the guardian visited the same position twice, it would cause a loop
-		if guardian.isLooping {
-			positionsWhichWouldCauseALoop[position] = true
+		// Create a new copy of the lab map for each test
+		testLabMap := LabMap{area: make([][]string, len(labMap.area))}
+		for i, row := range labMap.area {
+			testLabMap.area[i] = make([]string, len(row))
+			copy(testLabMap.area[i], row)
 		}
 
-		// Remove the obstacle
-		LabMap.removeObstacle(position)
+		// Add an obstacle
+		testLabMap.area[position.y][position.x] = "#"
+
+		// Test if this obstacle causes a loop
+		guardian := NewGuardian(testLabMap)
+		guardian.visitTheLab()
+
+		// If the guardian is looping, add this position
+		if guardian.isLooping {
+			positionsWhichWouldCauseALoop = append(positionsWhichWouldCauseALoop, position)
+		}
 	}
 
-	positions := []Position{}
-	for position := range positionsWhichWouldCauseALoop {
-		positions = append(positions, position)
+	// return all unique positions
+
+	postionsMap := make(map[Position]bool)
+	for _, position := range positionsWhichWouldCauseALoop {
+		postionsMap[position] = true
+
 	}
 
-	return positions
+	uniquePositions := []Position{}
+	for position := range postionsMap {
+		uniquePositions = append(uniquePositions, position)
+	}
+
+	return uniquePositions
 }
 
 func (LabMap *LabMap) addObstacle(position Position) {
@@ -249,30 +268,24 @@ func (guardian *Guardian) getUniquePositionsVisited() int {
 
 func (guardian *Guardian) hasLooped() bool {
 	positions := guardian.visitedPositions
+	countOfUniquePositions := guardian.getUniquePositionsVisited()
 
-	// We need at least 6 positions to detect a meaningful loop
-	if len(positions) < 6 {
-		return false
-	}
-
-	// Start from the end and look for potential loop patterns
-	for loopLength := 2; loopLength <= len(positions)/2; loopLength++ {
-		// Check if the last two segments are identical
-		if isIdenticalSegments(positions[len(positions)-loopLength*2:], loopLength) {
-			return true
-		}
+	// if the guardian has visited twice more than the length of unique positions, it has looped
+	if len(positions) > countOfUniquePositions*2 {
+		return true
 	}
 
 	return false
 }
 
-func isIdenticalSegments(positions []Position, segmentLength int) bool {
-	// Split the slice into two equal segments
-	firstSegment := positions[:segmentLength]
-	secondSegment := positions[segmentLength : segmentLength*2]
+func isIdenticalSegments(firstSegment, secondSegment []Position) bool {
+	// Ensure segments are of equal length
+	if len(firstSegment) != len(secondSegment) {
+		return false
+	}
 
 	// Compare each position in the segments
-	for i := 0; i < segmentLength; i++ {
+	for i := 0; i < len(firstSegment); i++ {
 		if firstSegment[i] != secondSegment[i] {
 			return false
 		}
