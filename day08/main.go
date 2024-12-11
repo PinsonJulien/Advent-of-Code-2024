@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"os"
 	"strings"
 )
 
 type ProblemInput struct {
-	cityMap [][]string
+	points      map[image.Point]bool
+	frequencies map[rune][]image.Point
 }
 
 func main() {
@@ -18,7 +20,7 @@ func main() {
 }
 
 func firstPart(inputs ProblemInput) int {
-	return 0
+	return countAllAntiNodes(inputs)
 }
 
 func secondPart(inputs ProblemInput) int {
@@ -26,26 +28,62 @@ func secondPart(inputs ProblemInput) int {
 }
 
 func loadInputs(filename string) (inputs ProblemInput) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
+	inputs = NewProblemInput()
+
+	input, _ := os.ReadFile(filename)
 
 	// Parse the data here
-	fileContent := string(data)
-	lines := strings.Split(fileContent, "\n")
-
-	cityMap := [][]string{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	fileContent := string(input)
+	for y, s := range strings.Fields(fileContent) {
+		for x, r := range s {
+			inputs.addPoint(image.Pt(x, y))
+			if r != '.' {
+				inputs.addFrequency(r, image.Pt(x, y))
+			}
 		}
-
-		cityMap = append(cityMap, strings.Split(line, ""))
 	}
 
-	inputs = ProblemInput{cityMap: cityMap}
-
 	return inputs
+}
+
+func countAllAntiNodes(inputs ProblemInput) int {
+	return len(getAllAntiNodes(inputs))
+}
+
+func getAllAntiNodes(inputs ProblemInput) []image.Point {
+	antiNodes := []image.Point{}
+
+	for _, antennas := range inputs.frequencies {
+		for _, a1 := range antennas {
+			for _, a2 := range antennas {
+				if a1 == a2 {
+					continue
+				}
+
+				antiNode := a2.Add(a2.Sub(a1))
+				if inputs.points[antiNode] {
+					antiNodes = append(antiNodes, antiNode)
+				}
+			}
+		}
+	}
+
+	return antiNodes
+}
+
+// ProblemInput methods
+
+func NewProblemInput() ProblemInput {
+	return ProblemInput{
+		points:      map[image.Point]bool{},
+		frequencies: map[rune][]image.Point{},
+	}
+}
+
+func (p *ProblemInput) addPoint(point image.Point) {
+	p.points[point] = true
+}
+
+func (p *ProblemInput) addFrequency(frequency rune, point image.Point) {
+	p.frequencies[frequency] = append(p.frequencies[frequency], point)
 }
