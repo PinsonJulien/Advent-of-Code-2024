@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"image"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -24,21 +26,19 @@ func firstPart(inputs ProblemInput) int {
 }
 
 func secondPart(inputs ProblemInput) int {
-	return 0
+	return countAllAntiNodesWithResonantHarmonics(inputs)
 }
 
 func loadInputs(filename string) (inputs ProblemInput) {
 	inputs = NewProblemInput()
 
 	input, _ := os.ReadFile(filename)
-
-	// Parse the data here
-	fileContent := string(input)
-	for y, s := range strings.Fields(fileContent) {
+	for y, s := range strings.Fields(string(input)) {
 		for x, r := range s {
-			inputs.addPoint(image.Pt(x, y))
+			point := image.Pt(x, y)
+			inputs.addPoint(point)
 			if r != '.' {
-				inputs.addFrequency(r, image.Pt(x, y))
+				inputs.addFrequency(r, point)
 			}
 		}
 	}
@@ -51,24 +51,44 @@ func countAllAntiNodes(inputs ProblemInput) int {
 }
 
 func getAllAntiNodes(inputs ProblemInput) []image.Point {
-	antiNodes := []image.Point{}
-
+	antiNodes := map[image.Point]struct{}{}
 	for _, antennas := range inputs.frequencies {
 		for _, a1 := range antennas {
 			for _, a2 := range antennas {
 				if a1 == a2 {
 					continue
 				}
-
-				antiNode := a2.Add(a2.Sub(a1))
-				if inputs.points[antiNode] {
-					antiNodes = append(antiNodes, antiNode)
+				a := a2.Add(a2.Sub(a1))
+				if inputs.points[a] {
+					antiNodes[a] = struct{}{}
 				}
 			}
 		}
 	}
 
-	return antiNodes
+	return slices.Collect(maps.Keys(antiNodes))
+}
+
+func countAllAntiNodesWithResonantHarmonics(inputs ProblemInput) int {
+	return len(getAllAntiNodesWithResonantHarmonics(inputs))
+}
+
+func getAllAntiNodesWithResonantHarmonics(inputs ProblemInput) []image.Point {
+	antiNodes := map[image.Point]struct{}{}
+	for _, antennas := range inputs.frequencies {
+		for _, a1 := range antennas {
+			for _, a2 := range antennas {
+				if a1 == a2 {
+					continue
+				}
+				for d := a2.Sub(a1); inputs.points[a2]; a2 = a2.Add(d) {
+					antiNodes[a2] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return slices.Collect(maps.Keys(antiNodes))
 }
 
 // ProblemInput methods
