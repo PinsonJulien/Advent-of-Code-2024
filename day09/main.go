@@ -83,7 +83,7 @@ func (d Disk) getChecksum() int {
 func (d Disk) getWholeFileChecksum() int {
 	total := 0
 
-	for i, file := range d.files {
+	for i, file := range d.compactWithWholeFile() {
 		total += i * file
 	}
 
@@ -168,23 +168,17 @@ func (d Disk) compactWithWholeFile() []int {
 		}
 	}
 
-	fmt.Println(files)
+	compacted := make([]File, len(files))
 
-	compacted := []File{}
-
-	// loop through each files
-	for i, file := range files {
+	for i := 0; i < len(files); i++ {
+		file := files[i]
 		if !file.isEmpty {
 			compacted = append(compacted, file)
 			continue
 		}
 
-		// If the file is empty
-		// looks for the right most value which is not empty and has the same size or smaller
 		for j := len(files) - 1; j > i; j-- {
 			rightFile := files[j]
-			fmt.Println("right", rightFile)
-
 			if rightFile.isEmpty {
 				continue
 			}
@@ -195,30 +189,24 @@ func (d Disk) compactWithWholeFile() []int {
 
 			rightFile.isEmpty = true
 
-			// if the right file has the same size, then, modify the empty file
 			if rightFile.size == file.size {
-				fmt.Println("equal")
-				// set the file value to the right most value
 				file.value = rightFile.value
 				file.isEmpty = false
+				files[j].isEmpty = true
 				break
 			}
 
-			fmt.Println("less than")
-
-			// if the right file has a smaller, change the empty file size and add the right file before the empty file
+			// if less, change the empty file size and add the right file before the empty file
 
 			file.size = file.size - rightFile.size
+			files[j].isEmpty = true
 
 			// insert the right file before the empty file
 			newFile := File{isEmpty: false, value: rightFile.value, size: rightFile.size}
 			compacted = append(compacted, newFile)
-
-			//compacted = slices.Insert(compacted, i, newFile)
-
 		}
+
 		compacted = append(compacted, file)
-		fmt.Println("after", compacted)
 	}
 
 	// Create a slice of all values
